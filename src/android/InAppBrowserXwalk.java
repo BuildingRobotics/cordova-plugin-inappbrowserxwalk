@@ -25,6 +25,7 @@ import android.widget.TextView;
 import android.graphics.Typeface;
 import android.widget.Toast;
 
+import android.webkit.ValueCallback;
 import android.webkit.WebResourceResponse;
 
 public class InAppBrowserXwalk extends CordovaPlugin {
