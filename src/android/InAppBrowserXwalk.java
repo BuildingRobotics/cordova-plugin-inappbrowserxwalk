@@ -122,21 +122,13 @@ public class InAppBrowserXwalk extends CordovaPlugin {
         this.cordova.getActivity().runOnUiThread(new Runnable() {
             @Override
             public void run() {
-                dialog = new BrowserDialog(cordova.getActivity(), android.R.style.Theme_NoTitleBar);
-                xWalkWebView = new XWalkView(cordova.getActivity(), cordova.getActivity());
-                XWalkCookieManager mCookieManager = new XWalkCookieManager();
-                mCookieManager.setAcceptCookie(true);
-                mCookieManager.setAcceptFileSchemeCookies(true);
-                xWalkWebView.setUIClient(new MyClientUI(xWalkWebView));
-                xWalkWebView.setResourceClient(new MyResourceClient(xWalkWebView));
-                xWalkWebView.load(url, "");
-
                 String toolbarColor = "#FFFFFF";
                 int toolbarHeight = 80;
                 String closeButtonText = "< Close";
                 int closeButtonSize = 25;
                 String closeButtonColor = "#000000";
                 boolean openHidden = false;
+                boolean clearCookies = false;
 
                 if(data != null && data.length() > 1) {
                     try {
@@ -160,11 +152,26 @@ public class InAppBrowserXwalk extends CordovaPlugin {
                             if(!options.isNull("openHidden")) {
                                 openHidden = options.getBoolean("openHidden");
                             }
+                            if(!options.isNull("clearCookies")) {
+                                clearCookies = options.getBoolean("clearCookies");
+                            }
                         }
                     catch (JSONException ex) {
 
                     }
                 }
+
+                dialog = new BrowserDialog(cordova.getActivity(), android.R.style.Theme_NoTitleBar);
+                xWalkWebView = new XWalkView(cordova.getActivity(), cordova.getActivity());
+                XWalkCookieManager mCookieManager = new XWalkCookieManager();
+                mCookieManager.setAcceptCookie(true);
+                mCookieManager.setAcceptFileSchemeCookies(true);
+                if (clearCookies) {
+                    mCookieManager.removeAllCookie();
+                }
+                xWalkWebView.setUIClient(new MyClientUI(xWalkWebView));
+                xWalkWebView.setResourceClient(new MyResourceClient(xWalkWebView));
+                xWalkWebView.load(url, "");
 
                 LinearLayout main = new LinearLayout(cordova.getActivity());
                 main.setOrientation(LinearLayout.VERTICAL);
