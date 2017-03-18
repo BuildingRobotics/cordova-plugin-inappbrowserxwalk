@@ -54,17 +54,5 @@ module.exports = {
         options = (options === undefined) ? "{}" : JSON.stringify(options);
         cordova.exec(callback, null, "InAppBrowserXwalk", "open", [url, options]);
         return new InAppBrowserXwalk();
-    },
-    get: function (clientCallback) {
-        cordova.exec(function (result) {
-            if (result && result.isOpen) {
-                cordova.exec(callback, null, "InAppBrowserXwalk", "setCallback", []);
-                clientCallback(new InAppBrowserXwalk());
-            } else {
-                clientCallback(null);
-            }
-        }, function () {
-            clientCallback(null);
-        }, "InAppBrowserXwalk", "isOpen", []);
     }
 };
