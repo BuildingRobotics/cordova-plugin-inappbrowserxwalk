@@ -32,6 +32,8 @@ public class InAppBrowserXwalk extends CordovaPlugin {
 
     private BrowserDialog dialog;
     private XWalkView xWalkWebView;
+    private MyUIClient uiClient;
+    private MyResourceClient resourceClient;
     private CallbackContext callbackContext;
 
     @Override
@@ -58,11 +60,32 @@ public class InAppBrowserXwalk extends CordovaPlugin {
             this.injectJS(data.getString(0));
         }
 
+        if (action.equals("isOpen")) {
+            try {
+                JSONObject obj = new JSONObject();
+                obj.put("isOpen", dialog != null);
+                PluginResult result = new PluginResult(PluginResult.Status.OK, obj);
+                result.setKeepCallback(false);
+                callbackContext.sendPluginResult(result);
+            } catch (JSONException ex) {}
+        }
+
+        if (action.equals("setCallback")) {
+            this.callbackContext = callbackContext;
+            uiClient.setCallbackContext(callbackContext);
+            resourceClient.setCallbackContext(callbackContext);
+        }
+
         return true;
     }
 
     class MyResourceClient extends XWalkResourceClient {
-        MyResourceClient(XWalkView view) { super(view); }
+        private CallbackContext callbackContext;
+
+        MyResourceClient(XWalkView view, CallbackContext callbackContext) {
+            super(view);
+            setCallbackContext(callbackContext);
+        }
 
         @Override
         public void onReceivedLoadError (XWalkView view, int errorCode, String description, String failingUrl) {
@@ -78,44 +101,55 @@ public class InAppBrowserXwalk extends CordovaPlugin {
                 callbackContext.sendPluginResult(result);
             } catch (JSONException ex) {}
         }
+
+        public void setCallbackContext(CallbackContext callbackContext) {
+            this.callbackContext = callbackContext;
+        }
     }
 
-    class MyClientUI extends XWalkUIClient {
-           MyClientUI(XWalkView view) {
-               super(view);
-           }
+    class MyUIClient extends XWalkUIClient {
+        private CallbackContext callbackContext;
 
-           @Override
-           public void onPageLoadStarted (XWalkView view, String url) {
-               try {
-                   JSONObject obj = new JSONObject();
-                   obj.put("type", "loadstart");
-                   obj.put("url", url);
-                   PluginResult result = new PluginResult(PluginResult.Status.OK, obj);
-                   result.setKeepCallback(true);
-                   callbackContext.sendPluginResult(result);
-               } catch (JSONException ex) {}
-           }
+        MyUIClient(XWalkView view, CallbackContext callbackContext) {
+            super(view);
+            setCallbackContext(callbackContext);
+        }
 
-           @Override
-           public void onPageLoadStopped (XWalkView view, String url, LoadStatus status) {
-               try {
-                   String code = (status == LoadStatus.FINISHED) ? "loadstop" : "loaderror";
+        @Override
+        public void onPageLoadStarted (XWalkView view, String url) {
+            try {
+                JSONObject obj = new JSONObject();
+                obj.put("type", "loadstart");
+                obj.put("url", url);
+                PluginResult result = new PluginResult(PluginResult.Status.OK, obj);
+                result.setKeepCallback(true);
+                callbackContext.sendPluginResult(result);
+            } catch (JSONException ex) {}
+        }
 
-                   JSONObject obj = new JSONObject();
-                   obj.put("type", code);
-                   obj.put("url", url);
+        @Override
+        public void onPageLoadStopped (XWalkView view, String url, LoadStatus status) {
+            try {
+                String code = (status == LoadStatus.FINISHED) ? "loadstop" : "loaderror";
 
-                   if (status != LoadStatus.FINISHED) {
-                       obj.put("status", status == LoadStatus.FAILED ? "failed": "cancelled");
-                   }
+                JSONObject obj = new JSONObject();
+                obj.put("type", code);
+                obj.put("url", url);
 
-                   PluginResult result = new PluginResult(PluginResult.Status.OK, obj);
-                   result.setKeepCallback(true);
-                   callbackContext.sendPluginResult(result);
-               } catch (JSONException ex) {}
-           }
-   }
+                if (status != LoadStatus.FINISHED) {
+                    obj.put("status", status == LoadStatus.FAILED ? "failed": "cancelled");
+                }
+
+                PluginResult result = new PluginResult(PluginResult.Status.OK, obj);
+                result.setKeepCallback(true);
+                callbackContext.sendPluginResult(result);
+            } catch (JSONException ex) {}
+        }
+
+        public void setCallbackContext(CallbackContext callbackContext) {
+            this.callbackContext = callbackContext;
+        }
+    }
 
     private void openBrowser(final JSONArray data) throws JSONException {
         final String url = data.getString(0);
@@ -169,8 +203,13 @@ public class InAppBrowserXwalk extends CordovaPlugin {
                 if (clearCookies) {
                     mCookieManager.removeAllCookie();
                 }
-                xWalkWebView.setUIClient(new MyClientUI(xWalkWebView));
-                xWalkWebView.setResourceClient(new MyResourceClient(xWalkWebView));
+
+                uiClient = new MyUIClient(xWalkWebView, callbackContext);
+                xWalkWebView.setUIClient(uiClient);
+
+                resourceClient = new MyResourceClient(xWalkWebView, callbackContext);
+                xWalkWebView.setResourceClient(resourceClient);
+
                 xWalkWebView.load(url, "");
 
                 LinearLayout main = new LinearLayout(cordova.getActivity());
@@ -237,6 +276,8 @@ public class InAppBrowserXwalk extends CordovaPlugin {
             public void run() {
                 xWalkWebView.onDestroy();
                 dialog.dismiss();
+                xWalkWebView = null;
+                dialog = null;
                 try {
                     JSONObject obj = new JSONObject();
                     obj.put("type", "exit");
